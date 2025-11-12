@@ -22,9 +22,9 @@ export const ReportView = ({ projectId, onBack }: ReportViewProps) => {
   const [reportHtml, setReportHtml] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
   
-  const isProfessor = user?.role === 'profesor';
-  const isStudent = user?.role === 'estudiante';
-  const isAdmin = user?.role === 'admin';
+  const isProfessor = user?.roles?.includes('ROLE_TEACHER') ?? false;
+  const isStudent = user?.roles?.includes('ROLE_STUDENT') ?? false;
+  const isAdmin = user?.roles?.includes('ROLE_ADMIN') ?? false;
   
   // Default report type based on role
   const [reportType, setReportType] = useState<'student' | 'team'>(
@@ -62,9 +62,9 @@ export const ReportView = ({ projectId, onBack }: ReportViewProps) => {
         setIsGenerating(false);
         return;
       }
-      html = generateStudentReport(project, delivery, user.name);
+      html = generateStudentReport(project, delivery, user.username);
     } else {
-      html = generateTeamReport(project, user.name);
+      html = generateTeamReport(project, user.username);
     }
 
     setReportHtml(html);
@@ -73,7 +73,7 @@ export const ReportView = ({ projectId, onBack }: ReportViewProps) => {
     saveReport({
       projectId: project.id,
       type: reportType,
-      createdBy: user.id,
+      createdBy: user.username,
       createdAt: new Date().toISOString(),
       contentHtml: html
     });

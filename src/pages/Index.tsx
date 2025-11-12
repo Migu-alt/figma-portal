@@ -73,7 +73,7 @@ const Index = () => {
             onLogout={handleLogout}
           />
           {/* Floating Admin Button */}
-          {user?.role === 'admin' && (
+          {user?.roles?.includes('ROLE_ADMIN') && (
             <Button
               onClick={handleOpenAdminPanel}
               className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-elevated"
