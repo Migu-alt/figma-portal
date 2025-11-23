@@ -11,6 +11,8 @@ import { ReportView } from '@/components/ReportView';
 import { AccessibilityPanel } from '@/components/AccessibilityPanel';
 import { useAuth } from '@/hooks/useAuth';
 import { apiService } from '@/services/api';
+import { reportService } from '@/services/reportService';
+import { toast } from '@/hooks/use-toast';
 
 interface ProjectDetailProps {
   projectId: string;
@@ -28,12 +30,68 @@ export const ProjectDetail = ({ projectId, onBack }: ProjectDetailProps) => {
   const [loadingDeliveries, setLoadingDeliveries] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deliveriesError, setDeliveriesError] = useState<string | null>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const { user, hasRole } = useAuth();
 
   // Determinar roles usando hasRole
   const isAdmin = hasRole('ROLE_ADMIN') || (hasRole('ROLE_STUDENT') && hasRole('ROLE_TEACHER'));
   const isProfessor = hasRole('ROLE_TEACHER') && !hasRole('ROLE_STUDENT');
   const isStudent = hasRole('ROLE_STUDENT') && !hasRole('ROLE_TEACHER');
+
+  // Función para manejar generación y descarga de reporte
+  const handleGenerateReport = async () => {
+    if (!project || !user) return;
+
+    try {
+      setIsGeneratingReport(true);
+
+      // Usar el ID real del usuario si está disponible, sino generar uno temporal
+      const userId = user.id || Math.abs(user.username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0));
+      
+      // Construir el nombre del estudiante desde el usuario
+      const studentName = user.username || 'Estudiante';
+      
+      console.log('📊 [ProjectDetail] Generating report:', {
+        projectId: parseInt(projectId),
+        projectName: project.name,
+        userId: userId,
+        studentName: studentName,
+        userIdSource: user.id ? 'real' : 'generated'
+      });
+
+      toast({
+        title: 'Generando reporte',
+        description: 'Por favor espera...',
+      });
+
+      // Generar el reporte
+      const report = await reportService.generateStudentReport(
+        parseInt(projectId),
+        project.name,
+        userId,
+        studentName
+      );
+
+      console.log('✅ [ProjectDetail] Report generated:', report);
+
+      // Descargar el PDF automáticamente
+      await reportService.downloadReportPDF(report.id, userId, project.name);
+
+      toast({
+        title: 'Reporte descargado',
+        description: 'El reporte PDF se ha descargado exitosamente',
+      });
+    } catch (error) {
+      console.error('❌ [ProjectDetail] Error generating report:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo generar el reporte',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
 
   // Función para transformar ProjectFromAPI a Project
   const transformProject = (apiProject: ProjectFromAPI): Project => {
@@ -361,10 +419,20 @@ export const ProjectDetail = ({ projectId, onBack }: ProjectDetailProps) => {
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => setCurrentView('report')}
+                  onClick={handleGenerateReport}
+                  disabled={isGeneratingReport}
                 >
-                  <FileText className="w-4 h-4 mr-2" />
-                  {isProfessor ? 'Generar Reporte de Equipo' : 'Ver mi Reporte'}
+                  {isGeneratingReport ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Generando...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4 mr-2" />
+                      {isProfessor ? 'Generar Reporte de Equipo' : 'Descargar mi Reporte'}
+                    </>
+                  )}
                 </Button>
               )}
               <Button
